@@ -1,0 +1,89 @@
+/*
+ * Sulu Admin Bar – frontend toolbar.
+ * Only loaded when a Sulu admin session exists.
+ */
+
+html.sulu-admin-bar-active {
+    margin-top: 32px !important;
+    scroll-padding-top: 32px;
+}
+
+#sulu-admin-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    height: 32px;
+    background: #000;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    font-size: 13px;
+    line-height: 32px;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+}
+
+#sulu-admin-bar *,
+#sulu-admin-bar *::before,
+#sulu-admin-bar *::after {
+    box-sizing: inherit;
+}
+
+#sulu-admin-bar .sab-section {
+    display: flex;
+    align-items: stretch;
+    min-width: 0;
+}
+
+#sulu-admin-bar .sab-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    color: #fff;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+#sulu-admin-bar a.sab-item:hover,
+#sulu-admin-bar a.sab-item:focus {
+    background: #1d1d1d;
+    color: #52b6ca;
+    outline: none;
+}
+
+#sulu-admin-bar .sab-logo {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+#sulu-admin-bar .sab-logo svg {
+    display: block;
+}
+
+#sulu-admin-bar .sab-user {
+    color: #b4b9be;
+}
+
+#sulu-admin-bar .sab-logout {
+    color: #ff8085;
+}
+
+#sulu-admin-bar a.sab-logout:hover,
+#sulu-admin-bar a.sab-logout:focus {
+    color: #ff8085;
+}
+
+@media screen and (max-width: 600px) {
+    #sulu-admin-bar .sab-user {
+        display: none;
+    }
+
+    #sulu-admin-bar .sab-item {
+        padding: 0 8px;
+    }
+}

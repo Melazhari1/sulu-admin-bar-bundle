@@ -1,0 +1,11 @@
+parameters:
+    level: 5
+    paths:
+        - src
+    ignoreErrors:
+        # Sulu 3 classes, guarded with instanceof (never autoloaded on Sulu 2).
+        - '#Sulu\\Content\\Domain\\Model\\DimensionContentInterface#'
+        - '#Sulu\\Page\\Domain\\Model\\PageInterface#'
+        # Symfony BC layers, guarded with method_exists().
+        - '#getUsername\(\)#'
+        - '#isMasterRequest\(\)#'

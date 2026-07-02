@@ -1,0 +1,36 @@
+services:
+    admin_bar.twig_extension:
+        class: Elazhari\SuluAdminBarBundle\Twig\AdminBarExtension
+        arguments:
+            - '@request_stack'
+            - '%admin_bar.enabled%'
+            - '%admin_bar.entities%'
+            - '%admin_bar.labels%'
+        tags:
+            - { name: twig.extension }
+
+    admin_bar.controller:
+        class: Elazhari\SuluAdminBarBundle\Controller\AdminBarController
+        public: true
+        arguments:
+            - '@security.token_storage'
+            - '@sulu_security.security_checker'
+            - '@router'
+            - '@sulu_core.webspace.webspace_manager'
+            - '%admin_bar.entities%'
+            # Optional: only available in the admin context, which is the
+            # only context this controller is ever executed in.
+            - '@?sulu_admin.view_registry'
+        tags:
+            - { name: controller.service_arguments }
+
+    # Maintains the JS-readable marker cookie the loader script checks
+    # before calling the endpoint. Admin context only: website responses
+    # must stay cacheable and untouched.
+    admin_bar.admin_session_cookie_listener:
+        class: Elazhari\SuluAdminBarBundle\EventListener\AdminSessionCookieListener
+        arguments:
+            - '@security.token_storage'
+        tags:
+            - { name: kernel.event_listener, event: kernel.response, method: onKernelResponse }
+            - { name: sulu.context, context: admin }

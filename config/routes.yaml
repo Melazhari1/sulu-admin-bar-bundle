@@ -1,0 +1,6 @@
+# The path must stay below "/_private" so that the request runs through the
+# admin firewall and the Sulu admin session token is available.
+admin_bar.info:
+    path: /_private/admin-bar
+    controller: admin_bar.controller::infoAction
+    methods: [GET]

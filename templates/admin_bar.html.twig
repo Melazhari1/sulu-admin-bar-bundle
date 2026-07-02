@@ -1,0 +1,19 @@
+{#
+    Loader snippet of the Sulu admin bar.
+
+    This output is identical for every visitor, so pages stay fully HTTP
+    cacheable. The script asks the authenticated endpoint whether an admin
+    session exists and only then injects the bar (and its stylesheet).
+#}
+<script src="{{ asset('bundles/adminbar/admin-bar.js') }}"
+        defer
+        data-sulu-admin-bar
+        data-endpoint="{{ path('admin_bar.info') }}"
+        data-css="{{ asset('bundles/adminbar/admin-bar.css') }}"
+        {%- if context.webspace %} data-webspace="{{ context.webspace }}"{% endif %}
+        {%- if context.locale %} data-locale="{{ context.locale }}"{% endif %}
+        {%- if context.uuid %} data-uuid="{{ context.uuid }}"{% endif %}
+        {%- if context.id %} data-id="{{ context.id }}"{% endif %}
+        {%- if context.resourceKey %} data-resource-key="{{ context.resourceKey }}"{% endif %}
+        {%- for key, label in labels|default([]) %} data-label-{{ key }}="{{ label }}"{% endfor -%}
+></script>
