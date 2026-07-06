@@ -101,15 +101,17 @@ admin_bar:
 
 **4. Allow anonymous access to the endpoint.** It must stay inside the admin
 firewall but must not trigger the admin login — it answers `401` itself.
-Add this rule **above** the `^/_private` catch-all:
+Add this rule **above** the admin catch-all, using your admin base path
+(`/admin` in a stock Sulu project, `/_private`, `/backend`, … in customized
+ones):
 
 ```yaml
 # config/packages/security.yaml
 # (or security_admin.yaml in projects with kernel specific security configs)
 access_control:
     # ...
-    - { path: ^/_private/admin-bar$, roles: PUBLIC_ACCESS }
-    - { path: ^/_private, roles: ROLE_USER }
+    - { path: ^/admin/admin-bar$, roles: PUBLIC_ACCESS }
+    - { path: ^/admin, roles: ROLE_USER }
 ```
 
 On Symfony versions without the `PUBLIC_ACCESS` attribute use
@@ -142,7 +144,8 @@ Log into the admin once, then open the website: the bar appears.
 
 ## How it works
 
-In a standard Sulu setup only the admin (`^/_private`) is behind a firewall
+In a standard Sulu setup only the admin (`/admin` by default — the bundle
+adapts to any custom prefix, see below) is behind a firewall
 and website responses are cached by the HTTP cache. Rendering a user-specific
 bar directly into the page HTML would therefore either never see the admin
 session or leak the bar into cached responses. This bundle avoids both:
@@ -154,9 +157,9 @@ session or leak the bar into cached responses. This bundle avoids both:
    marker cookie (`sulu_admin_bar`) and removes it again on logout. The
    cookie carries no data; it only tells the loader that an admin session
    exists, so **anonymous visitors never call the endpoint at all**.
-3. When the marker is present, the script calls `GET /_private/admin-bar`,
-   which runs through the **admin firewall**, so the Sulu admin session is
-   available there.
+3. When the marker is present, the script calls `GET <admin path>/admin-bar`
+   (e.g. `/admin/admin-bar`), which runs through the **admin firewall**, so
+   the Sulu admin session is available there.
 4. If the user is authenticated, the endpoint returns their name and the
    permission-checked admin URLs; the script injects the stylesheet and the
    bar. Otherwise it returns `401`, the stale marker is dropped and nothing
@@ -186,6 +189,10 @@ Everything works without configuration. The full reference:
 admin_bar:
     enabled: true   # set to false to remove the loader snippet entirely
 
+    # Base path of the Sulu admin — see "Custom admin URL" below.
+    # Auto-detected when omitted; falls back to /admin.
+    #admin_base_path: /admin
+
     # Texts of the toolbar links — override them to localize the bar.
     labels:
         edit: Edit
@@ -199,6 +206,33 @@ admin_bar:
             security_context: sulu.formations.formation   # optional extra gate
             routes: [formation]                           # optional route names
 ```
+
+## Custom admin URL
+
+Nothing about the admin URL is hardcoded. The endpoint route is registered
+as `<admin base path>/admin-bar`, and the base path is resolved per kernel:
+
+1. `admin_bar.admin_base_path`, when configured explicitly;
+2. otherwise **auto-detected** from the Sulu admin firewall pattern in your
+   `security` configuration (`^/admin(\/|$)`, `^/_private`, `^/backend`, …);
+3. otherwise Sulu's default `/admin`.
+
+So `/admin`, `/_private`, `/backend`, `/cms` or any other prefix works out
+of the box as long as the security configuration is visible to both Sulu
+kernels (the standard skeleton's single `security.yaml`).
+
+Set `admin_base_path` explicitly in one case: your project uses **kernel
+specific security configs** (`security_admin.yaml` / `security_website.yaml`).
+The website kernel then has no admin firewall to inspect, and the loader
+would point to the default `/admin`. Since `config/packages/admin_bar.yaml`
+is shared by both kernels, one line fixes it:
+
+```yaml
+admin_bar:
+    admin_base_path: /_private
+```
+
+(The installer detects your admin path and writes this line for you.)
 
 ## Custom entities
 
@@ -251,7 +285,7 @@ Notes:
 ## Security notes
 
 - The bar never renders for anonymous visitors; the decision is made by the
-  authenticated `/_private/admin-bar` endpoint, not by cacheable page HTML.
+  authenticated `<admin path>/admin-bar` endpoint, not by cacheable page HTML.
 - The `sulu_admin_bar` marker cookie is a pure presence flag (value `1`,
   session lifetime, `SameSite=Lax`). It is never trusted server-side: it
   only prevents pointless endpoint calls from visitors without an admin
@@ -289,7 +323,7 @@ AdminBarBundle/
 ├── LICENSE
 ├── README.md
 ├── config/
-│   ├── routes.yaml              # /_private/admin-bar JSON endpoint
+│   ├── routes.yaml              # <admin path>/admin-bar JSON endpoint
 │   └── services.yaml            # service definitions
 ├── public/
 │   ├── admin-bar.css            # toolbar styles (loaded only when logged in)
@@ -309,6 +343,58 @@ AdminBarBundle/
 │   └── admin_bar.html.twig      # cache-safe loader snippet
 └── tests/                       # PHPUnit test suite (vendor/bin/phpunit)
 ```
+
+## Screenshots
+
+<!-- TODO: replace the placeholders with real captures -->
+![Admin bar on a Sulu page](docs/screenshot-page.png)
+*The bar on a regular Sulu page, with Edit / Add new / Logout.*
+
+![Admin bar on a custom entity](docs/screenshot-entity.png)
+*The bar on a custom entity detail page — the Edit link opens the entity's
+admin form.*
+
+## Troubleshooting
+
+**The bar does not appear at all.**
+Log into the Sulu admin first — the bar only renders for authenticated
+backend users, and only after the `sulu_admin_bar` marker cookie has been
+set by an admin page load. Also check that `{{ sulu_admin_bar() }}` is in
+your base layout and `admin_bar.enabled` is not `false`.
+
+**The browser console shows a 404 for `…/admin-bar`.**
+The resolved admin base path is wrong. This happens with kernel specific
+security configs (`security_admin.yaml`): set `admin_bar.admin_base_path`
+explicitly — see "Custom admin URL" above. `bin/websiteconsole
+debug:router admin_bar.info` shows the path the website kernel resolved.
+
+**The endpoint redirects to the admin login instead of returning 401.**
+The `access_control` rule is missing or below the admin catch-all. It must
+be **above** `- { path: ^<admin path>, roles: ROLE_USER }`.
+
+**The bar appears but has no styles / the JS file 404s.**
+Run `php bin/console assets:install public` so `bundles/adminbar/` exists.
+
+**Edit/Add links are missing for an entity.**
+The current user needs a matching admin view (view permission); with a
+configured `security_context`, the `EDIT`/`ADD` permission on that context
+is required on top. The entity must expose a numeric `getId()` and a
+`RESOURCE_KEY` constant, or be listed under `admin_bar.entities`.
+
+## Development
+
+```bash
+git clone https://github.com/elazhari/sulu-admin-bar-bundle.git
+cd sulu-admin-bar-bundle
+composer install
+
+vendor/bin/phpunit                              # tests
+vendor/bin/php-cs-fixer fix --dry-run --diff    # coding standards
+vendor/bin/phpstan analyse                      # static analysis
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution guidelines and
+[CHANGELOG.md](CHANGELOG.md) for the release history.
 
 ## License
 

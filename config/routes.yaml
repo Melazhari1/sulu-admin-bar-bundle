@@ -1,6 +1,10 @@
-# The path must stay below "/_private" so that the request runs through the
-# admin firewall and the Sulu admin session token is available.
+# The path must stay below the Sulu admin base path so that the request runs
+# through the admin firewall and the Sulu admin session token is available.
+# "%admin_bar.admin_base_path%" is auto-detected from the admin firewall
+# pattern of the security configuration (or set explicitly via the
+# "admin_bar.admin_base_path" option), so any admin URL works: /admin,
+# /_private, /backend, /cms, ...
 admin_bar.info:
-    path: /_private/admin-bar
+    path: '%admin_bar.admin_base_path%/admin-bar'
     controller: admin_bar.controller::infoAction
     methods: [GET]

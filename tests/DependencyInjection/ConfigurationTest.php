@@ -24,6 +24,7 @@ class ConfigurationTest extends TestCase
 
         self::assertSame([
             'enabled' => true,
+            'admin_base_path' => null,
             'labels' => [
                 'edit' => 'Edit',
                 'add' => 'Add new',
@@ -31,6 +32,13 @@ class ConfigurationTest extends TestCase
             ],
             'entities' => [],
         ], $config);
+    }
+
+    public function testAdminBasePathCanBeConfigured(): void
+    {
+        $config = $this->process(['admin_base_path' => '/_private']);
+
+        self::assertSame('/_private', $config['admin_base_path']);
     }
 
     public function testEntityDefaults(): void

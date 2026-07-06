@@ -20,10 +20,15 @@ declare(strict_types=1);
  *                               (skipped for composer installs under vendor/)
  *   2. config/bundles.php     – bundle registration
  *   3. config/routes/         – admin_bar.yaml route import
- *   4. config/packages/       – admin_bar.yaml default configuration
- *   5. security.yaml          – PUBLIC_ACCESS rule for /_private/admin-bar
+ *   4. config/packages/       – admin_bar.yaml default configuration with the
+ *                               detected admin base path (/admin, /_private, ...)
+ *   5. security.yaml          – PUBLIC_ACCESS rule for <admin path>/admin-bar
  *   6. templates/base.html.twig – {{ sulu_admin_bar() }} before </body>
  *   7. composer dump-autoload, assets:install, cache:clear
+ *
+ * The Sulu admin base path is detected from the project configuration
+ * (admin firewall pattern, access_control catch-all or the sulu_admin route
+ * import prefix), so custom admin URLs work without touching the bundle.
  *
  * Usage:
  *   php bundles/AdminBarBundle/install.php [--skip-commands]
@@ -55,9 +60,12 @@ if (null === $projectDir) {
 
 $relativeBundleDir = \str_replace('\\', '/', \substr($bundleDir, \strlen($projectDir) + 1));
 
+$adminBasePath = detectAdminBasePath($projectDir);
+
 echo "AdminBarBundle installer\n";
 echo "Project: {$projectDir}\n";
-echo "Bundle:  {$relativeBundleDir}\n\n";
+echo "Bundle:  {$relativeBundleDir}\n";
+echo 'Admin:   ' . ($adminBasePath ?? '(not detected, assuming /admin)') . "\n\n";
 
 $warnings = 0;
 
@@ -72,6 +80,15 @@ createFileIfMissing(
     $projectDir . '/config/packages/admin_bar.yaml',
     "admin_bar:\n    enabled: true\n"
     . "\n"
+    . "    # Base path of the Sulu admin. Auto-detected from the admin\n"
+    . "    # firewall pattern when omitted; setting it explicitly is only\n"
+    . "    # required when the security config is kernel specific (e.g.\n"
+    . "    # security_admin.yaml) and therefore not visible to the website\n"
+    . "    # kernel.\n"
+    . (null !== $adminBasePath
+        ? "    admin_base_path: {$adminBasePath}\n"
+        : "    #admin_base_path: /admin\n")
+    . "\n"
     . "    # Custom entities are detected automatically (RESOURCE_KEY\n"
     . "    # constant + getId() on a request attribute). Optional extra\n"
     . "    # configuration per entity:\n"
@@ -82,7 +99,7 @@ createFileIfMissing(
     . "    #        routes: [formation]                          # optional\n",
     'package config (config/packages/admin_bar.yaml)'
 );
-updateSecurityYaml($projectDir);
+updateSecurityYaml($projectDir, $adminBasePath ?? '/admin');
 updateBaseTemplate($projectDir);
 
 if ($skipCommands) {
@@ -92,7 +109,7 @@ if ($skipCommands) {
 }
 
 echo "\nDone" . ($warnings > 0 ? " with {$warnings} warning(s) – see above for manual steps." : '.') . "\n";
-echo "Log into /_private and open the website to see the admin bar.\n";
+echo 'Log into ' . ($adminBasePath ?? '/admin') . " and open the website to see the admin bar.\n";
 
 exit($warnings > 0 ? 2 : 0);
 
@@ -137,8 +154,14 @@ function updateComposerJson(string $projectDir, string $relativeBundleDir): void
         $json = \substr($json, 3);
     }
 
-    /** @var array<string, mixed> $composer */
-    $composer = \json_decode($json, true, 512, \JSON_THROW_ON_ERROR);
+    try {
+        /** @var array<string, mixed> $composer */
+        $composer = \json_decode($json, true, 512, \JSON_THROW_ON_ERROR);
+    } catch (\JsonException $e) {
+        output(STATUS_WARN, "composer.json could not be parsed ({$e->getMessage()}) – add this PSR-4 autoload entry manually:\n        \"Elazhari\\\\SuluAdminBarBundle\\\\\": \"{$relativeBundleDir}/src/\"");
+
+        return;
+    }
 
     if (isset($composer['autoload']['psr-4']['Elazhari\\SuluAdminBarBundle\\'])) {
         output(STATUS_SKIP, 'composer.json autoload entry already present');
@@ -198,11 +221,86 @@ function createFileIfMissing(string $file, string $content, string $description)
     output(STATUS_OK, 'created ' . $description);
 }
 
-function updateSecurityYaml(string $projectDir): void
+/**
+ * Detects the Sulu admin base path ("/admin", "/_private", ...) from the
+ * project configuration. Sources, in order:
+ *
+ *   1. the "admin" firewall pattern in security(_admin).yaml
+ *   2. the "path: ^..., roles: ROLE_USER" access_control catch-all
+ *   3. the shortest "prefix:" of the config/routes/sulu_admin.yaml imports
+ */
+function detectAdminBasePath(string $projectDir): ?string
 {
+    $securityFiles = \array_filter([
+        $projectDir . '/config/packages/security_admin.yaml',
+        $projectDir . '/config/packages/security.yaml',
+    ], 'is_file');
+
+    foreach ($securityFiles as $file) {
+        $content = (string) \file_get_contents($file);
+
+        if (1 === \preg_match('/^[ \t]+admin:\s*\n[ \t]+pattern:[ \t]*[\'"]?(\^[^\s\'"]+)/m', $content, $matches)) {
+            $path = extractPathPrefix($matches[1]);
+
+            if (null !== $path) {
+                return $path;
+            }
+        }
+
+        if (1 === \preg_match('/^[ \t]*- \{ path: [\'"]?(\^[^,\'"\s]+)[\'"]?, roles: ROLE_USER \}/m', $content, $matches)) {
+            $path = extractPathPrefix($matches[1]);
+
+            if (null !== $path) {
+                return $path;
+            }
+        }
+    }
+
+    $routesFile = $projectDir . '/config/routes/sulu_admin.yaml';
+    if (\is_file($routesFile)
+        && \preg_match_all('/^[ \t]+prefix:[ \t]*[\'"]?(\/[^\s\'"]*)/m', (string) \file_get_contents($routesFile), $matches)
+    ) {
+        $prefixes = $matches[1];
+        \usort($prefixes, static function (string $a, string $b) {
+            return \strlen($a) - \strlen($b);
+        });
+
+        // The shortest prefix is the admin root the API/security/media/...
+        // imports are nested under.
+        foreach ($prefixes as $prefix) {
+            $path = \rtrim($prefix, '/');
+
+            if ('' !== $path) {
+                return $path;
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Extracts the literal path prefix of a firewall/access_control pattern:
+ * "^/admin(\/|$)" => "/admin", "^\/_private" => "/_private".
+ */
+function extractPathPrefix(string $pattern): ?string
+{
+    $pattern = \str_replace('\\/', '/', $pattern);
+
+    if (1 !== \preg_match('#^\^(/[A-Za-z0-9_\-./]*[A-Za-z0-9_\-])#', $pattern, $matches)) {
+        return null;
+    }
+
+    return $matches[1];
+}
+
+function updateSecurityYaml(string $projectDir, string $adminBasePath): void
+{
+    $rule = '- { path: ^' . $adminBasePath . '/admin-bar$, roles: PUBLIC_ACCESS }';
+
     // Sulu projects keep the admin firewall either in security.yaml or, with
     // kernel specific configs, in security_admin.yaml — patch whichever file
-    // contains the "^/_private" access_control catch-all.
+    // contains the admin access_control catch-all.
     $candidates = [
         $projectDir . '/config/packages/security_admin.yaml',
         $projectDir . '/config/packages/security.yaml',
@@ -211,7 +309,7 @@ function updateSecurityYaml(string $projectDir): void
     $files = \array_values(\array_filter($candidates, 'is_file'));
 
     if ([] === $files) {
-        output(STATUS_WARN, "config/packages/security.yaml not found – add this access_control rule above the ^/_private catch-all manually:\n        - { path: ^/_private/admin-bar$, roles: PUBLIC_ACCESS }");
+        output(STATUS_WARN, "config/packages/security.yaml not found – add this access_control rule above the ^{$adminBasePath} catch-all manually:\n        {$rule}");
 
         return;
     }
@@ -220,7 +318,7 @@ function updateSecurityYaml(string $projectDir): void
         $name = \basename($file);
         $content = (string) \file_get_contents($file);
 
-        if (false !== \strpos($content, '_private/admin-bar')) {
+        if (false !== \strpos($content, '/admin-bar')) {
             output(STATUS_SKIP, $name . ' access_control rule already present');
 
             return;
@@ -231,13 +329,14 @@ function updateSecurityYaml(string $projectDir): void
         $role = false !== \strpos($content, 'IS_AUTHENTICATED_ANONYMOUSLY')
             ? 'IS_AUTHENTICATED_ANONYMOUSLY'
             : 'PUBLIC_ACCESS';
-        $accessControlLine = '- { path: ^/_private/admin-bar$, roles: ' . $role . ' }';
+        $accessControlLine = '- { path: ^' . $adminBasePath . '/admin-bar$, roles: ' . $role . ' }';
 
-        // Insert directly above the "^/_private" catch-all so the endpoint
-        // answers 401 itself instead of triggering the admin login.
+        // Insert directly above the admin catch-all so the endpoint answers
+        // 401 itself instead of triggering the admin login.
+        $quotedPath = \preg_quote($adminBasePath, '/');
         $updated = \preg_replace(
-            '/^([ \t]*)- \{ path: \^\/_private, roles: ROLE_USER \}/m',
-            "\$1{$accessControlLine}\n\$1- { path: ^/_private, roles: ROLE_USER }",
+            '/^([ \t]*)(- \{ path: \^' . $quotedPath . ', roles: ROLE_USER \})/m',
+            "\$1{$accessControlLine}\n\$1\$2",
             $content,
             1,
             $count
@@ -245,13 +344,13 @@ function updateSecurityYaml(string $projectDir): void
 
         if (null !== $updated && $count > 0) {
             \file_put_contents($file, $updated);
-            output(STATUS_OK, $name . ': added ' . $role . ' rule for ^/_private/admin-bar$');
+            output(STATUS_OK, $name . ': added ' . $role . ' rule for ^' . $adminBasePath . '/admin-bar$');
 
             return;
         }
     }
 
-    output(STATUS_WARN, "security config: could not find the \"^/_private\" access_control catch-all in " . \implode(' or ', \array_map('basename', $files)) . " – add this rule above it manually:\n        - { path: ^/_private/admin-bar$, roles: PUBLIC_ACCESS }");
+    output(STATUS_WARN, "security config: could not find the \"^{$adminBasePath}\" access_control catch-all in " . \implode(' or ', \array_map('basename', $files)) . " – add this rule above it manually:\n        {$rule}");
 }
 
 function updateBaseTemplate(string $projectDir): void

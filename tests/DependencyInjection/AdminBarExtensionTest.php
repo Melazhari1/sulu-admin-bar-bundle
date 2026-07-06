@@ -56,4 +56,84 @@ class AdminBarExtensionTest extends TestCase
 
         self::assertFalse($container->getParameter('admin_bar.enabled'));
     }
+
+    public function testAdminBasePathDefaultsToSuluDefault(): void
+    {
+        $container = new ContainerBuilder();
+
+        (new AdminBarExtension())->load([[]], $container);
+
+        self::assertSame('/admin', $container->getParameter('admin_bar.admin_base_path'));
+    }
+
+    public function testAdminBasePathCanBeConfiguredExplicitly(): void
+    {
+        $container = new ContainerBuilder();
+
+        (new AdminBarExtension())->load([['admin_base_path' => 'backend/']], $container);
+
+        self::assertSame('/backend', $container->getParameter('admin_bar.admin_base_path'));
+    }
+
+    public function testAdminBasePathIsDetectedFromAdminFirewallPattern(): void
+    {
+        $container = new ContainerBuilder();
+        $container->prependExtensionConfig('security', [
+            'firewalls' => [
+                'dev' => ['pattern' => '^/(_(profiler|wdt)|css|images|js)/', 'security' => false],
+                'admin' => ['pattern' => '^/_private', 'provider' => 'sulu'],
+            ],
+        ]);
+
+        (new AdminBarExtension())->load([[]], $container);
+
+        self::assertSame('/_private', $container->getParameter('admin_bar.admin_base_path'));
+    }
+
+    public function testAdminBasePathIsDetectedFromSuluFirewallWithCustomName(): void
+    {
+        $container = new ContainerBuilder();
+        $container->prependExtensionConfig('security', [
+            'firewalls' => [
+                'dev' => ['pattern' => '^/(_(profiler|wdt))/', 'security' => false],
+                'backend' => [
+                    'pattern' => '^\/cms(\/|$)',
+                    'entry_point' => 'sulu_security.authentication_entry_point',
+                ],
+            ],
+        ]);
+
+        (new AdminBarExtension())->load([[]], $container);
+
+        self::assertSame('/cms', $container->getParameter('admin_bar.admin_base_path'));
+    }
+
+    public function testExplicitAdminBasePathWinsOverDetection(): void
+    {
+        $container = new ContainerBuilder();
+        $container->prependExtensionConfig('security', [
+            'firewalls' => [
+                'admin' => ['pattern' => '^/_private', 'provider' => 'sulu'],
+            ],
+        ]);
+
+        (new AdminBarExtension())->load([['admin_base_path' => '/backend']], $container);
+
+        self::assertSame('/backend', $container->getParameter('admin_bar.admin_base_path'));
+    }
+
+    public function testNonSuluFirewallsAreIgnored(): void
+    {
+        $container = new ContainerBuilder();
+        $container->prependExtensionConfig('security', [
+            'firewalls' => [
+                'dev' => ['pattern' => '^/(_(profiler|wdt))/', 'security' => false],
+                'main' => ['pattern' => '^/', 'form_login' => ['login_path' => 'app_login']],
+            ],
+        ]);
+
+        (new AdminBarExtension())->load([[]], $container);
+
+        self::assertSame('/admin', $container->getParameter('admin_bar.admin_base_path'));
+    }
 }

@@ -17,5 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cache-safe loader snippet (`{{ sulu_admin_bar() }}`): no user-specific
   markup in the page HTML, no endpoint call for anonymous visitors
   (session marker cookie).
+- Admin base path resolution (`admin_bar.admin_base_path`): the endpoint
+  route adapts to any admin URL (`/admin`, `/_private`, `/backend`, …) —
+  auto-detected from the admin firewall pattern of the security
+  configuration, with Sulu's default `/admin` as fallback.
 - Configurable toolbar labels (`admin_bar.labels`) for localization.
 - One-command project installer (`install.php`).
