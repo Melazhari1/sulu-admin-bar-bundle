@@ -25,9 +25,10 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 /**
  * Returns the data needed to render the frontend admin bar as JSON.
  *
- * The route of this controller lives below "/_private" on purpose: it is the
- * only path prefix covered by the admin firewall, so the Sulu admin session
- * token is available here while frontend pages stay fully cacheable.
+ * The route of this controller lives below the admin URL prefix on purpose
+ * (see "admin_bar.admin_route_prefix"): it is the only path prefix covered
+ * by the admin firewall, so the Sulu admin session token is available here
+ * while frontend pages stay fully cacheable.
  *
  * Kept compatible with PHP >= 7.2 and Sulu 2.x/3.x: page/webspace security
  * contexts and admin URL patterns are identical in both major versions, so

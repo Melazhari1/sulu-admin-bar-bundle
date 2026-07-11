@@ -1,6 +1,8 @@
-# The path must stay below "/_private" so that the request runs through the
-# admin firewall and the Sulu admin session token is available.
+# The path must live below the admin URL prefix so that the request runs
+# through the admin firewall and the Sulu admin session token is available.
+# The prefix is detected from the "admin" firewall pattern of the project
+# (fallback "/admin") and can be overridden with "admin_bar.admin_route_prefix".
 admin_bar.info:
-    path: /_private/admin-bar
+    path: '%admin_bar.admin_route_prefix%/admin-bar'
     controller: admin_bar.controller::infoAction
     methods: [GET]

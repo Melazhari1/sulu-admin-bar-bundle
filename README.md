@@ -101,15 +101,16 @@ admin_bar:
 
 **4. Allow anonymous access to the endpoint.** It must stay inside the admin
 firewall but must not trigger the admin login — it answers `401` itself.
-Add this rule **above** the `^/_private` catch-all:
+Add this rule **above** the admin catch-all, using your project's admin URL
+prefix (`/admin` in the Sulu skeleton):
 
 ```yaml
 # config/packages/security.yaml
 # (or security_admin.yaml in projects with kernel specific security configs)
 access_control:
     # ...
-    - { path: ^/_private/admin-bar$, roles: PUBLIC_ACCESS }
-    - { path: ^/_private, roles: ROLE_USER }
+    - { path: ^/admin/admin-bar$, roles: PUBLIC_ACCESS }
+    - { path: ^/admin, roles: ROLE_USER }
 ```
 
 On Symfony versions without the `PUBLIC_ACCESS` attribute use
@@ -142,7 +143,7 @@ Log into the admin once, then open the website: the bar appears.
 
 ## How it works
 
-In a standard Sulu setup only the admin (`^/_private`) is behind a firewall
+In a standard Sulu setup only the admin (`^/admin`) is behind a firewall
 and website responses are cached by the HTTP cache. Rendering a user-specific
 bar directly into the page HTML would therefore either never see the admin
 session or leak the bar into cached responses. This bundle avoids both:
@@ -154,9 +155,11 @@ session or leak the bar into cached responses. This bundle avoids both:
    marker cookie (`sulu_admin_bar`) and removes it again on logout. The
    cookie carries no data; it only tells the loader that an admin session
    exists, so **anonymous visitors never call the endpoint at all**.
-3. When the marker is present, the script calls `GET /_private/admin-bar`,
-   which runs through the **admin firewall**, so the Sulu admin session is
-   available there.
+3. When the marker is present, the script calls `GET <admin-prefix>/admin-bar`
+   (`/admin/admin-bar` by default), which runs through the **admin firewall**,
+   so the Sulu admin session is available there. The prefix is detected from
+   the project's `admin` firewall pattern automatically — see
+   `admin_route_prefix` below.
 4. If the user is authenticated, the endpoint returns their name and the
    permission-checked admin URLs; the script injects the stylesheet and the
    bar. Otherwise it returns `401`, the stale marker is dropped and nothing
@@ -185,6 +188,14 @@ Everything works without configuration. The full reference:
 # config/packages/admin_bar.yaml
 admin_bar:
     enabled: true   # set to false to remove the loader snippet entirely
+
+    # URL prefix the Sulu admin lives under. The admin bar endpoint is
+    # registered below it so the request runs through the admin firewall.
+    # Detected automatically from the "admin" firewall pattern of your
+    # security configuration ("/admin" in the Sulu skeleton, "/_private"
+    # in older setups, ...); only set it when the detection cannot work,
+    # e.g. with a renamed admin firewall.
+    #admin_route_prefix: /admin
 
     # Texts of the toolbar links — override them to localize the bar.
     labels:
@@ -260,7 +271,8 @@ Notes:
 ## Security notes
 
 - The bar never renders for anonymous visitors; the decision is made by the
-  authenticated `/_private/admin-bar` endpoint, not by cacheable page HTML.
+  authenticated `<admin-prefix>/admin-bar` endpoint, not by cacheable page
+  HTML.
 - The `sulu_admin_bar` marker cookie is a pure presence flag (value `1`,
   session lifetime, `SameSite=Lax`). It is never trusted server-side: it
   only prevents pointless endpoint calls from visitors without an admin
@@ -302,7 +314,7 @@ AdminBarBundle/
 ├── LICENSE
 ├── README.md
 ├── config/
-│   ├── routes.yaml              # /_private/admin-bar JSON endpoint
+│   ├── routes.yaml              # <admin-prefix>/admin-bar JSON endpoint
 │   └── services.yaml            # service definitions
 ├── public/
 │   ├── admin-bar.css            # toolbar styles (loaded only when logged in)

@@ -26,6 +26,22 @@ class Configuration implements ConfigurationInterface
                     ->info('Whether the admin bar loader is rendered on the website at all.')
                     ->defaultTrue()
                 ->end()
+                ->scalarNode('admin_route_prefix')
+                    ->info('URL prefix the Sulu admin lives under, e.g. "/admin". The admin bar endpoint is registered below it so the request runs through the admin firewall. Defaults to auto-detection from the "admin" firewall pattern of the security configuration, with "/admin" as fallback.')
+                    ->defaultNull()
+                    ->beforeNormalization()
+                        ->ifString()
+                        ->then(static function (string $value): string {
+                            return \rtrim($value, '/');
+                        })
+                    ->end()
+                    ->validate()
+                        ->ifTrue(static function ($value): bool {
+                            return null !== $value && (!\is_string($value) || '' === $value || '/' !== $value[0]);
+                        })
+                        ->thenInvalid('admin_route_prefix must be a path starting with "/" (e.g. "/admin"), got %s.')
+                    ->end()
+                ->end()
                 ->arrayNode('labels')
                     ->info('Texts of the toolbar links. Override them to localize the bar.')
                     ->addDefaultsIfNotSet()

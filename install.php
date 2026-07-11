@@ -21,7 +21,7 @@ declare(strict_types=1);
  *   2. config/bundles.php     – bundle registration
  *   3. config/routes/         – admin_bar.yaml route import
  *   4. config/packages/       – admin_bar.yaml default configuration
- *   5. security.yaml          – PUBLIC_ACCESS rule for /_private/admin-bar
+ *   5. security.yaml          – PUBLIC_ACCESS rule for <admin-prefix>/admin-bar
  *   6. templates/base.html.twig – {{ sulu_admin_bar() }} before </body>
  *   7. composer dump-autoload, assets:install, cache:clear
  *
@@ -84,7 +84,7 @@ createFileIfMissing(
     . "    #        routes: [formation_detail]                   # optional\n",
     'package config (config/packages/admin_bar.yaml)'
 );
-updateSecurityYaml($projectDir);
+$adminPrefix = updateSecurityYaml($projectDir);
 updateBaseTemplate($projectDir);
 
 if ($skipCommands) {
@@ -94,7 +94,7 @@ if ($skipCommands) {
 }
 
 echo "\nDone" . ($warnings > 0 ? " with {$warnings} warning(s) – see above for manual steps." : '.') . "\n";
-echo "Log into /_private and open the website to see the admin bar.\n";
+echo "Log into {$adminPrefix} and open the website to see the admin bar.\n";
 
 exit($warnings > 0 ? 2 : 0);
 
@@ -200,11 +200,13 @@ function createFileIfMissing(string $file, string $content, string $description)
     output(STATUS_OK, 'created ' . $description);
 }
 
-function updateSecurityYaml(string $projectDir): void
+function updateSecurityYaml(string $projectDir): string
 {
     // Sulu projects keep the admin firewall either in security.yaml or, with
     // kernel specific configs, in security_admin.yaml — patch whichever file
-    // contains the "^/_private" access_control catch-all.
+    // contains the admin access_control catch-all. The admin URL prefix
+    // differs per project ("/admin" in the skeleton, "/_private" in older
+    // setups, ...), so it is detected from the catch-all itself.
     $candidates = [
         $projectDir . '/config/packages/security_admin.yaml',
         $projectDir . '/config/packages/security.yaml',
@@ -213,47 +215,74 @@ function updateSecurityYaml(string $projectDir): void
     $files = \array_values(\array_filter($candidates, 'is_file'));
 
     if ([] === $files) {
-        output(STATUS_WARN, "config/packages/security.yaml not found – add this access_control rule above the ^/_private catch-all manually:\n        - { path: ^/_private/admin-bar$, roles: PUBLIC_ACCESS }");
+        output(STATUS_WARN, "config/packages/security.yaml not found – add this access_control rule above your admin catch-all manually:\n        - { path: ^/admin/admin-bar$, roles: PUBLIC_ACCESS }");
 
-        return;
+        return '/admin';
     }
 
     foreach ($files as $file) {
         $name = \basename($file);
         $content = (string) \file_get_contents($file);
 
-        if (false !== \strpos($content, '_private/admin-bar')) {
+        if (false !== \strpos($content, '/admin-bar$')) {
             output(STATUS_SKIP, $name . ' access_control rule already present');
 
-            return;
+            return detectAdminPrefix($content) ?? '/admin';
         }
+
+        // The admin catch-all is the last "- { path: ^..., roles: ROLE_USER }"
+        // rule; its path is the admin URL prefix of this project.
+        if (0 === \preg_match_all(
+            '/^([ \t]*)- \{ path: \^(\/[A-Za-z0-9_\/-]+), roles: ROLE_USER \}/m',
+            $content,
+            $matches,
+            \PREG_OFFSET_CAPTURE
+        )) {
+            continue;
+        }
+
+        $last = \count($matches[0]) - 1;
+        $indent = $matches[1][$last][0];
+        $prefix = \rtrim($matches[2][$last][0], '/');
+        $offset = (int) $matches[0][$last][1];
 
         // Match the anonymous-access role already used in the file so the
         // rule works on every supported Symfony version.
         $role = false !== \strpos($content, 'IS_AUTHENTICATED_ANONYMOUSLY')
             ? 'IS_AUTHENTICATED_ANONYMOUSLY'
             : 'PUBLIC_ACCESS';
-        $accessControlLine = '- { path: ^/_private/admin-bar$, roles: ' . $role . ' }';
+        $accessControlLine = $indent . '- { path: ^' . $prefix . '/admin-bar$, roles: ' . $role . ' }' . "\n";
 
-        // Insert directly above the "^/_private" catch-all so the endpoint
-        // answers 401 itself instead of triggering the admin login.
-        $updated = \preg_replace(
-            '/^([ \t]*)- \{ path: \^\/_private, roles: ROLE_USER \}/m',
-            "\$1{$accessControlLine}\n\$1- { path: ^/_private, roles: ROLE_USER }",
-            $content,
-            1,
-            $count
-        );
+        // Insert directly above the catch-all so the endpoint answers 401
+        // itself instead of triggering the admin login.
+        \file_put_contents($file, \substr_replace($content, $accessControlLine, $offset, 0));
+        output(STATUS_OK, $name . ': added ' . $role . ' rule for ^' . $prefix . '/admin-bar$');
 
-        if (null !== $updated && $count > 0) {
-            \file_put_contents($file, $updated);
-            output(STATUS_OK, $name . ': added ' . $role . ' rule for ^/_private/admin-bar$');
-
-            return;
-        }
+        return $prefix;
     }
 
-    output(STATUS_WARN, "security config: could not find the \"^/_private\" access_control catch-all in " . \implode(' or ', \array_map('basename', $files)) . " – add this rule above it manually:\n        - { path: ^/_private/admin-bar$, roles: PUBLIC_ACCESS }");
+    output(STATUS_WARN, "security config: could not find the admin access_control catch-all (\"- { path: ^/..., roles: ROLE_USER }\") in " . \implode(' or ', \array_map('basename', $files)) . " – add this rule above it manually:\n        - { path: ^<admin-prefix>/admin-bar$, roles: PUBLIC_ACCESS }");
+
+    return '/admin';
+}
+
+/**
+ * Extracts the admin URL prefix from the "admin" firewall pattern or the
+ * ROLE_USER access_control catch-all of a security config file.
+ */
+function detectAdminPrefix(string $content): ?string
+{
+    if (1 === \preg_match('/^[ \t]*pattern:\s*[\'"]?\^(\/[A-Za-z0-9_.~-]+(?:\/[A-Za-z0-9_.~-]+)*)/m', $content, $matches)) {
+        return $matches[1];
+    }
+
+    if (\preg_match_all('/- \{ path: \^(\/[A-Za-z0-9_\/-]+), roles: ROLE_USER \}/', $content, $matches)) {
+        $paths = $matches[1];
+
+        return \rtrim((string) \end($paths), '/');
+    }
+
+    return null;
 }
 
 function updateBaseTemplate(string $projectDir): void
