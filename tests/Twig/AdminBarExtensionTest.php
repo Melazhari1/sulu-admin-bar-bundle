@@ -95,6 +95,27 @@ class AdminBarExtensionTest extends TestCase
         ], $context);
     }
 
+    public function testResolvesArticleContextFromSulu3Object(): void
+    {
+        if (!\class_exists(\Sulu\Article\Domain\Model\Article::class)) {
+            self::markTestSkipped('The Article content entity only exists on Sulu 3.');
+        }
+
+        $article = new \Sulu\Article\Domain\Model\Article('11111111-2222-3333-4444-555555555555');
+        $dimensionContent = new \Sulu\Article\Domain\Model\ArticleDimensionContent($article);
+        $dimensionContent->setLocale('fr');
+
+        $request = Request::create('/');
+        $request->attributes->set('object', $dimensionContent);
+
+        $context = $this->resolveContext($request);
+
+        self::assertSame('articles', $context['resourceKey']);
+        self::assertSame('11111111-2222-3333-4444-555555555555', $context['id']);
+        self::assertSame('fr', $context['locale']);
+        self::assertNull($context['uuid'], 'only pages use the uuid/webspace edit URL');
+    }
+
     public function testAutoDetectsEntitiesByResourceKeyConvention(): void
     {
         $request = Request::create('/');

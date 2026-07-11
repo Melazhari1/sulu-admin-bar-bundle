@@ -29,8 +29,10 @@ use Twig\TwigFunction;
  * successful call to the authenticated admin bar endpoint.
  *
  * Detects the current page for both Sulu major versions:
- *  - Sulu 3: "object" request attribute (DimensionContentInterface)
- *  - Sulu 2: "structure" request attribute (PageBridge)
+ *  - Sulu 3: "object" request attribute (DimensionContentInterface,
+ *    covering pages, articles and any other content entity)
+ *  - Sulu 2: "structure" request attribute (PageBridge) and, with
+ *    SuluArticleBundle, the "object" attribute (ArticleDocument)
  * The instanceof checks against version specific classes are safe because
  * instanceof never triggers autoloading and simply yields false when the
  * class does not exist.
@@ -150,7 +152,22 @@ class AdminBarExtension extends AbstractExtension
             $resource = $object->getResource();
             if ($resource instanceof \Sulu\Page\Domain\Model\PageInterface) {
                 $context['uuid'] = $resource->getUuid();
+            } elseif (null !== ($id = $this->resolveEntityId($resource))) {
+                // Articles (and any other content entity): expose the id
+                // (a UUID for articles) so the authenticated endpoint can
+                // resolve the admin edit view from the view registry.
+                $context['id'] = $id;
             }
+
+            return $context;
+        }
+
+        // Sulu 2 with SuluArticleBundle: articles are rendered with the
+        // PHPCR ArticleDocument as "object" request attribute.
+        if ($object instanceof \Sulu\Bundle\ArticleBundle\Document\ArticleDocument) {
+            $context['resourceKey'] = 'articles';
+            $context['id'] = $object->getUuid();
+            $context['locale'] = $object->getLocale() ?: $context['locale'];
 
             return $context;
         }

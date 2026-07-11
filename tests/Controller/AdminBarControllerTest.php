@@ -165,6 +165,56 @@ class AdminBarControllerTest extends TestCase
         self::assertSame('/admin#/formations/fr/formations/add', $data['urls']['add']);
     }
 
+    public function testBuildsArticleUrlsFromUuidIds(): void
+    {
+        // Sulu articles use UUID ids; the views mirror the paths Sulu 3's
+        // ArticleAdmin registers ("default" article type group).
+        $controller = $this->createController(
+            $this->createUser('John Doe'),
+            ['website' => ['fr']],
+            [],
+            [],
+            $this->createViewRegistry([
+                ['resourceKey' => 'articles', 'path' => '/:locale/default/:id'],
+                ['resourceKey' => 'articles', 'path' => '/:locale/default/add'],
+            ])
+        );
+
+        $response = $controller->infoAction(Request::create('/_private/admin-bar', 'GET', [
+            'webspace' => 'website',
+            'locale' => 'fr',
+            'resourceKey' => 'articles',
+            'id' => self::UUID,
+        ]));
+
+        $data = $this->decode($response);
+
+        self::assertSame('/admin#/fr/default/' . self::UUID, $data['urls']['edit']);
+        self::assertSame('/admin#/fr/default/add', $data['urls']['add']);
+    }
+
+    public function testRejectsNonNumericNonUuidEntityIds(): void
+    {
+        $controller = $this->createController(
+            $this->createUser('John Doe'),
+            ['website' => ['fr']],
+            [],
+            [],
+            $this->createViewRegistry([
+                ['resourceKey' => 'articles', 'path' => '/:locale/default/:id'],
+            ])
+        );
+
+        $response = $controller->infoAction(Request::create('/_private/admin-bar', 'GET', [
+            'webspace' => 'website',
+            'locale' => 'fr',
+            'resourceKey' => 'articles',
+            'id' => '<script>alert(1)</script>',
+        ]));
+
+        self::assertNull($this->decode($response)['urls']['edit']);
+    }
+
     public function testEntityUrlsRespectTheConfiguredSecurityContext(): void
     {
         $controller = $this->createController(

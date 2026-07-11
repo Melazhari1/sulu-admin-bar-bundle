@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-07-11
+
+### Fixed
+
+- **Articles are now supported.** On Sulu 3, article pages (rendered with an
+  `ArticleDimensionContent` as `object` request attribute) previously fell
+  through to the generic webspace context: the bar showed no edit link and
+  the add link pointed to the page list. The Twig extension now exposes the
+  article UUID as entity id and the endpoint accepts UUID entity ids (it
+  only accepted numeric Doctrine ids before), so the edit/add links resolve
+  to the article form views from the admin view registry. On Sulu 2,
+  articles rendered by SuluArticleBundle (`ArticleDocument` as `object`
+  request attribute) are detected as well.
+
 ## [1.2.0] - 2026-07-11
 
 ### Changed

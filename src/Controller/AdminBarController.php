@@ -163,9 +163,11 @@ class AdminBarController
         $isPage = self::RESOURCE_KEY_PAGES === $resourceKey
             && 1 === \preg_match(self::UUID_PATTERN, $uuid);
 
+        // Entity ids are numeric (Doctrine auto-increment) or UUIDs
+        // (e.g. Sulu articles); anything else is ignored.
         $isEntity = '' !== $resourceKey
             && self::RESOURCE_KEY_PAGES !== $resourceKey
-            && \ctype_digit($id);
+            && (\ctype_digit($id) || 1 === \preg_match(self::UUID_PATTERN, $id));
 
         $adminUrl = $this->urlGenerator->generate('sulu_admin');
 
