@@ -34,6 +34,11 @@ use Twig\TwigFunction;
  * The instanceof checks against version specific classes are safe because
  * instanceof never triggers autoloading and simply yields false when the
  * class does not exist.
+ *
+ * Entity pages served by plain Symfony routes carry no entity object; for
+ * those only the route name and the numeric "id" parameter are exposed and
+ * the entity is resolved server-side by the authenticated endpoint (see
+ * EntityResourceKeyResolver).
  */
 class AdminBarExtension extends AbstractExtension
 {
@@ -48,9 +53,9 @@ class AdminBarExtension extends AbstractExtension
     private $enabled;
 
     /**
-     * Custom entity map: request attribute name => ['resource_key' => ..., 'security_context' => ...].
+     * Custom entity map: request attribute name => ['resource_key' => ..., 'security_context' => ..., 'routes' => ...].
      *
-     * @var array<string, array{resource_key: string, security_context: string}>
+     * @var array<string, array{resource_key: string, security_context: ?string, routes?: string[]}>
      */
     private $entities;
 
@@ -62,7 +67,7 @@ class AdminBarExtension extends AbstractExtension
     private $labels;
 
     /**
-     * @param array<string, array{resource_key: string, security_context: string}> $entities
+     * @param array<string, array{resource_key: string, security_context: ?string, routes?: string[]}> $entities
      * @param array<string, string> $labels
      */
     public function __construct(RequestStack $requestStack, bool $enabled = true, array $entities = [], array $labels = [])
@@ -110,7 +115,7 @@ class AdminBarExtension extends AbstractExtension
     }
 
     /**
-     * @return array{webspace: ?string, locale: ?string, uuid: ?string, id: ?string, resourceKey: ?string}
+     * @return array{webspace: ?string, locale: ?string, uuid: ?string, id: ?string, resourceKey: ?string, route: ?string}
      */
     private function resolveContext(Request $request): array
     {
@@ -120,6 +125,7 @@ class AdminBarExtension extends AbstractExtension
             'uuid' => null,
             'id' => null,
             'resourceKey' => null,
+            'route' => null,
         ];
 
         $suluAttributes = $request->attributes->get('_sulu');
@@ -192,19 +198,25 @@ class AdminBarExtension extends AbstractExtension
             }
         }
 
-        // Custom entities rendered by plain Symfony routes: match the route
-        // name and take the numeric "id" route parameter.
+        // Custom entities rendered by plain Symfony routes with a numeric
+        // "id" parameter. Explicitly configured route names map directly to
+        // their resource key; any other route is passed along (still
+        // visitor-independent, so still cache-safe) and matched against the
+        // Doctrine entities by the authenticated endpoint itself.
         $route = (string) $request->attributes->get('_route', '');
         $id = $request->attributes->get('id');
         if ('' !== $route && (\is_int($id) || (\is_string($id) && \ctype_digit($id)))) {
+            $context['id'] = (string) $id;
+
             foreach ($this->entities as $entityConfig) {
                 if (\in_array($route, $entityConfig['routes'] ?? [], true)) {
                     $context['resourceKey'] = $entityConfig['resource_key'];
-                    $context['id'] = (string) $id;
 
                     return $context;
                 }
             }
+
+            $context['route'] = $route;
         }
 
         return $context;

@@ -9,6 +9,15 @@ services:
         tags:
             - { name: twig.extension }
 
+    # Derives the resource key of entity pages served by plain Symfony
+    # routes from the Doctrine entity map (RESOURCE_KEY convention). Only
+    # used by the authenticated endpoint, so the entity index is never
+    # built for anonymous website traffic.
+    admin_bar.entity_resource_key_resolver:
+        class: Elazhari\SuluAdminBarBundle\Resolver\EntityResourceKeyResolver
+        arguments:
+            - '@?doctrine'
+
     admin_bar.controller:
         class: Elazhari\SuluAdminBarBundle\Controller\AdminBarController
         public: true
@@ -21,6 +30,7 @@ services:
             # Optional: only available in the admin context, which is the
             # only context this controller is ever executed in.
             - '@?sulu_admin.view_registry'
+            - '@admin_bar.entity_resource_key_resolver'
         tags:
             - { name: controller.service_arguments }
 

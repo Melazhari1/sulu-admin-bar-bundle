@@ -91,6 +91,7 @@ class AdminBarExtensionTest extends TestCase
             'uuid' => '11111111-2222-3333-4444-555555555555',
             'id' => null,
             'resourceKey' => 'pages',
+            'route' => null,
         ], $context);
     }
 
@@ -150,6 +151,34 @@ class AdminBarExtensionTest extends TestCase
 
         self::assertSame('formations', $context['resourceKey']);
         self::assertSame('34', $context['id']);
+        self::assertNull($context['route'], 'a configured route needs no endpoint-side detection');
+    }
+
+    public function testExposesRouteAndIdForUnmatchedEntityRoutes(): void
+    {
+        $request = Request::create('/formation/master-marketing/34/2');
+        $request->attributes->set('_route', 'formation');
+        $request->attributes->set('id', '34');
+
+        $context = $this->resolveContext($request);
+
+        // No resource key resolvable on the website side: the endpoint
+        // matches the route (and URL path) against the Doctrine entities.
+        self::assertNull($context['resourceKey']);
+        self::assertSame('34', $context['id']);
+        self::assertSame('formation', $context['route']);
+    }
+
+    public function testExposesNoRouteWithoutANumericId(): void
+    {
+        $request = Request::create('/formations');
+        $request->attributes->set('_route', 'formations');
+        $request->attributes->set('id', 'not-numeric');
+
+        $context = $this->resolveContext($request);
+
+        self::assertNull($context['route']);
+        self::assertNull($context['id']);
     }
 
     public function testFallsBackToEmptyContext(): void
@@ -165,6 +194,7 @@ class AdminBarExtensionTest extends TestCase
             'uuid' => null,
             'id' => null,
             'resourceKey' => null,
+            'route' => null,
         ], $context);
     }
 

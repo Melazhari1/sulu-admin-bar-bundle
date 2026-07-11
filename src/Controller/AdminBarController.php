@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Elazhari\SuluAdminBarBundle\Controller;
 
+use Elazhari\SuluAdminBarBundle\Resolver\EntityResourceKeyResolver;
 use Sulu\Bundle\SecurityBundle\Entity\User;
 use Sulu\Component\Security\Authorization\PermissionTypes;
 use Sulu\Component\Security\Authorization\SecurityCheckerInterface;
@@ -24,10 +25,9 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 /**
  * Returns the data needed to render the frontend admin bar as JSON.
  *
- * The route of this controller lives below the Sulu admin base path on
- * purpose (see "admin_bar.admin_base_path"): it is the only path prefix
- * covered by the admin firewall, so the Sulu admin session token is
- * available here while frontend pages stay fully cacheable.
+ * The route of this controller lives below "/_private" on purpose: it is the
+ * only path prefix covered by the admin firewall, so the Sulu admin session
+ * token is available here while frontend pages stay fully cacheable.
  *
  * Kept compatible with PHP >= 7.2 and Sulu 2.x/3.x: page/webspace security
  * contexts and admin URL patterns are identical in both major versions, so
@@ -37,6 +37,11 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
  * the edit/add links are resolved dynamically from the view registry by
  * resource key, so no per-entity configuration is required. Entries under
  * "admin_bar.entities" may add a stricter security context on top.
+ *
+ * When the website page could not name the resource key itself (entity
+ * pages served by plain Symfony routes), it is derived here from the route
+ * name and URL path via the EntityResourceKeyResolver — again without any
+ * per-entity configuration.
  */
 class AdminBarController
 {
@@ -91,6 +96,11 @@ class AdminBarController
     private $viewRegistry;
 
     /**
+     * @var EntityResourceKeyResolver|null
+     */
+    private $entityResourceKeyResolver;
+
+    /**
      * @param array<string, array{resource_key: string, security_context: ?string}> $entities
      * @param object|null $viewRegistry
      */
@@ -100,13 +110,15 @@ class AdminBarController
         UrlGeneratorInterface $urlGenerator,
         WebspaceManagerInterface $webspaceManager,
         array $entities = [],
-        $viewRegistry = null
+        $viewRegistry = null,
+        ?EntityResourceKeyResolver $entityResourceKeyResolver = null
     ) {
         $this->tokenStorage = $tokenStorage;
         $this->securityChecker = $securityChecker;
         $this->urlGenerator = $urlGenerator;
         $this->webspaceManager = $webspaceManager;
         $this->viewRegistry = $viewRegistry;
+        $this->entityResourceKeyResolver = $entityResourceKeyResolver;
 
         foreach ($entities as $entityConfig) {
             $this->entitiesByResourceKey[$entityConfig['resource_key']] = $entityConfig;
@@ -132,12 +144,24 @@ class AdminBarController
         $locale = $this->resolveLocale($webspace, (string) $request->query->get('locale', ''));
 
         $resourceKey = (string) $request->query->get('resourceKey', '');
+        $id = (string) $request->query->get('id', '');
+
+        // The page could not name its resource key (plain Symfony route
+        // without an entity object): derive it from the route name and the
+        // URL path via the Doctrine entity map. The result is only used to
+        // look up views in the permission-filtered view registry below, so
+        // it never grants anything a wrong guess could exploit.
+        if ('' === $resourceKey && \ctype_digit($id) && null !== $this->entityResourceKeyResolver) {
+            $resourceKey = (string) $this->entityResourceKeyResolver->resolve(
+                (string) $request->query->get('route', ''),
+                (string) $request->query->get('path', '')
+            );
+        }
 
         $uuid = (string) $request->query->get('uuid', '');
         $isPage = self::RESOURCE_KEY_PAGES === $resourceKey
             && 1 === \preg_match(self::UUID_PATTERN, $uuid);
 
-        $id = (string) $request->query->get('id', '');
         $isEntity = '' !== $resourceKey
             && self::RESOURCE_KEY_PAGES !== $resourceKey
             && \ctype_digit($id);

@@ -15,5 +15,6 @@
         {%- if context.uuid %} data-uuid="{{ context.uuid }}"{% endif %}
         {%- if context.id %} data-id="{{ context.id }}"{% endif %}
         {%- if context.resourceKey %} data-resource-key="{{ context.resourceKey }}"{% endif %}
+        {%- if context.route %} data-route="{{ context.route }}"{% endif %}
         {%- for key, label in labels|default([]) %} data-label-{{ key }}="{{ label }}"{% endfor -%}
 ></script>

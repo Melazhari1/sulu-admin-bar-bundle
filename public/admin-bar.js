@@ -33,11 +33,17 @@
     }
 
     var params = new URLSearchParams();
-    ['webspace', 'locale', 'uuid', 'id', 'resourceKey'].forEach(function (key) {
+    ['webspace', 'locale', 'uuid', 'id', 'resourceKey', 'route'].forEach(function (key) {
         if (script.dataset[key]) {
             params.set(key, script.dataset[key]);
         }
     });
+
+    // Unresolved entity page (route fallback): also send the URL path so
+    // the endpoint can match its segments against the entity resource keys.
+    if (script.dataset.route) {
+        params.set('path', window.location.pathname);
+    }
 
     // Generic labels: the edit/add links may point to a page or to a
     // custom entity form depending on the current context. Overridable

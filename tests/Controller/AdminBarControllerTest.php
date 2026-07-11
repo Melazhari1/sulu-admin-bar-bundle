@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Elazhari\SuluAdminBarBundle\Tests\Controller;
 
 use Elazhari\SuluAdminBarBundle\Controller\AdminBarController;
+use Elazhari\SuluAdminBarBundle\Resolver\EntityResourceKeyResolver;
 use PHPUnit\Framework\TestCase;
 use Sulu\Bundle\SecurityBundle\Entity\User;
 use Sulu\Component\Security\Authorization\PermissionTypes;
@@ -196,6 +197,66 @@ class AdminBarControllerTest extends TestCase
         self::assertNull($data['urls']['add'], 'ADD permission is missing');
     }
 
+    public function testDerivesTheResourceKeyFromRouteAndPath(): void
+    {
+        $resolver = $this->createMock(EntityResourceKeyResolver::class);
+        $resolver->expects(self::once())
+            ->method('resolve')
+            ->with('formation', '/formation/master-marketing/12/9')
+            ->willReturn('formations');
+
+        $controller = $this->createController(
+            $this->createUser('John Doe'),
+            ['website' => ['fr']],
+            [],
+            [],
+            $this->createViewRegistry([
+                ['resourceKey' => 'formations', 'path' => '/formations/:locale/formations/:id'],
+                ['resourceKey' => 'formations', 'path' => '/formations/:locale/formations/add'],
+            ]),
+            $resolver
+        );
+
+        // No "resourceKey": the page is served by a plain Symfony route and
+        // only carries the route name, path and numeric id.
+        $response = $controller->infoAction(Request::create('/_private/admin-bar', 'GET', [
+            'webspace' => 'website',
+            'locale' => 'fr',
+            'id' => '12',
+            'route' => 'formation',
+            'path' => '/formation/master-marketing/12/9',
+        ]));
+
+        $data = $this->decode($response);
+
+        self::assertSame('/admin#/formations/fr/formations/12', $data['urls']['edit']);
+        self::assertSame('/admin#/formations/fr/formations/add', $data['urls']['add']);
+    }
+
+    public function testDoesNotConsultTheResolverWithoutANumericId(): void
+    {
+        $resolver = $this->createMock(EntityResourceKeyResolver::class);
+        $resolver->expects(self::never())->method('resolve');
+
+        $controller = $this->createController(
+            $this->createUser('John Doe'),
+            ['website' => ['fr']],
+            [],
+            [],
+            null,
+            $resolver
+        );
+
+        $response = $controller->infoAction(Request::create('/_private/admin-bar', 'GET', [
+            'webspace' => 'website',
+            'locale' => 'fr',
+            'route' => 'formation',
+            'path' => '/formation/master-marketing',
+        ]));
+
+        self::assertNull($this->decode($response)['urls']['edit']);
+    }
+
     public function testEntityUrlsAreNullWithoutMatchingViews(): void
     {
         $controller = $this->createController(
@@ -246,7 +307,8 @@ class AdminBarControllerTest extends TestCase
         array $webspaces,
         array $permissions = [],
         array $entities = [],
-        $viewRegistry = null
+        $viewRegistry = null,
+        ?EntityResourceKeyResolver $entityResourceKeyResolver = null
     ): AdminBarController {
         $tokenStorage = $this->createMock(TokenStorageInterface::class);
         if (null !== $user) {
@@ -277,7 +339,8 @@ class AdminBarControllerTest extends TestCase
             $urlGenerator,
             $webspaceManager,
             $entities,
-            $viewRegistry
+            $viewRegistry,
+            $entityResourceKeyResolver
         );
     }
 
