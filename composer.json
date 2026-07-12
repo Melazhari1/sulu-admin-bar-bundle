@@ -1,5 +1,5 @@
 {
-    "name": "elazhari/sulu-admin-bar-bundle",
+    "name": "melazhari/sulu-admin-bar-bundle",
     "description": "Frontend admin bar for the Sulu CMS: edit the current page or custom entity, add new content and log out, directly from the website.",
     "license": "MIT",
     "type": "symfony-bundle",
@@ -16,10 +16,10 @@
             "email": "elazharimohamedp@gmail.com"
         }
     ],
-    "homepage": "https://github.com/elazhari/sulu-admin-bar-bundle",
+    "homepage": "https://github.com/melazhari/sulu-admin-bar-bundle",
     "support": {
-        "issues": "https://github.com/elazhari/sulu-admin-bar-bundle/issues",
-        "source": "https://github.com/elazhari/sulu-admin-bar-bundle"
+        "issues": "https://github.com/melazhari/sulu-admin-bar-bundle/issues",
+        "source": "https://github.com/melazhari/sulu-admin-bar-bundle"
     },
     "require": {
         "php": "^7.2 || ^8.0",

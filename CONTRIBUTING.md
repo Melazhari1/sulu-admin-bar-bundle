@@ -5,7 +5,7 @@ Thanks for considering a contribution!
 ## Setup
 
 ```bash
-git clone https://github.com/elazhari/sulu-admin-bar-bundle.git
+git clone https://github.com/melazhari/sulu-admin-bar-bundle.git
 cd sulu-admin-bar-bundle
 composer install
 ```

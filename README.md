@@ -1,23 +1,23 @@
 # AdminBarBundle
 
-[![CI](https://github.com/elazhari/sulu-admin-bar-bundle/actions/workflows/ci.yml/badge.svg)](https://github.com/elazhari/sulu-admin-bar-bundle/actions/workflows/ci.yml)
-[![Latest Version](https://img.shields.io/packagist/v/elazhari/sulu-admin-bar-bundle.svg)](https://packagist.org/packages/elazhari/sulu-admin-bar-bundle)
-[![License](https://img.shields.io/packagist/l/elazhari/sulu-admin-bar-bundle.svg)](LICENSE)
+[![CI](https://github.com/melazhari/sulu-admin-bar-bundle/actions/workflows/ci.yml/badge.svg)](https://github.com/melazhari/sulu-admin-bar-bundle/actions/workflows/ci.yml)
+[![Latest Version](https://img.shields.io/packagist/v/melazhari/sulu-admin-bar-bundle.svg)](https://packagist.org/packages/melazhari/sulu-admin-bar-bundle)
+[![License](https://img.shields.io/packagist/l/melazhari/sulu-admin-bar-bundle.svg)](LICENSE)
 
 A frontend admin bar for **Sulu CMS**. Backend users who are logged into the
 Sulu admin see a slim toolbar on top of the website with direct links to edit
-the content they are looking at. Anonymous visitors see nothing — and the
+the content they are looking at. Anonymous visitors see nothing â€” and the
 page HTML stays fully HTTP cacheable.
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ [S] Sulu                        John Doe | Edit | Add new | Logout │
-└──────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚ [S] Sulu                        John Doe | Edit | Add new | Logout â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ## Features
 
-- **Edit** the current page — or any custom entity (Formation, Article, …)
+- **Edit** the current page â€” or any custom entity (Formation, Article, â€¦)
   detected automatically, without per-entity code.
 - **Add new** content of the same type as the current page.
 - **Permission-aware**: links are resolved server-side from Sulu's view
@@ -36,8 +36,8 @@ Install the package and run the installer with the PHP binary your project
 uses (the installer needs PHP >= 7.3):
 
 ```bash
-composer require elazhari/sulu-admin-bar-bundle
-php vendor/elazhari/sulu-admin-bar-bundle/install.php
+composer require melazhari/sulu-admin-bar-bundle
+php vendor/melazhari/sulu-admin-bar-bundle/install.php
 ```
 
 Alternatively, copy the bundle into your Sulu project (e.g. to
@@ -47,7 +47,7 @@ Alternatively, copy the bundle into your Sulu project (e.g. to
 php bundles/AdminBarBundle/install.php
 ```
 
-It performs every manual step listed below — composer autoload entry, bundle
+It performs every manual step listed below â€” composer autoload entry, bundle
 registration, route import, default configuration, the security
 `access_control` rule, `{{ sulu_admin_bar() }}` in `templates/base.html.twig`,
 `composer dump-autoload`, `assets:install` and cache clearing.
@@ -59,10 +59,10 @@ only want the file changes without running composer/console commands.
 
 ### Manual installation
 
-**1. Register the code** — as a composer package:
+**1. Register the code** â€” as a composer package:
 
 ```bash
-composer require elazhari/sulu-admin-bar-bundle
+composer require melazhari/sulu-admin-bar-bundle
 ```
 
 Or, as a local bundle copied to `bundles/AdminBarBundle`, add the namespace
@@ -100,7 +100,7 @@ admin_bar:
 ```
 
 **4. Allow anonymous access to the endpoint.** It must stay inside the admin
-firewall but must not trigger the admin login — it answers `401` itself.
+firewall but must not trigger the admin login â€” it answers `401` itself.
 Add this rule **above** the admin catch-all, using your project's admin URL
 prefix (`/admin` in the Sulu skeleton):
 
@@ -150,7 +150,7 @@ session or leak the bar into cached responses. This bundle avoids both:
 
 1. `{{ sulu_admin_bar() }}` renders a tiny, **visitor-independent** loader
    `<script>` carrying the current page context (webspace, locale, page
-   uuid or entity id) as data attributes — safe to cache.
+   uuid or entity id) as data attributes â€” safe to cache.
 2. While using the admin, a response listener sets a JS-readable session
    marker cookie (`sulu_admin_bar`) and removes it again on logout. The
    cookie carries no data; it only tells the loader that an admin session
@@ -158,7 +158,7 @@ session or leak the bar into cached responses. This bundle avoids both:
 3. When the marker is present, the script calls `GET <admin-prefix>/admin-bar`
    (`/admin/admin-bar` by default), which runs through the **admin firewall**,
    so the Sulu admin session is available there. The prefix is detected from
-   the project's `admin` firewall pattern automatically — see
+   the project's `admin` firewall pattern automatically â€” see
    `admin_route_prefix` below.
 4. If the user is authenticated, the endpoint returns their name and the
    permission-checked admin URLs; the script injects the stylesheet and the
@@ -175,10 +175,10 @@ session or leak the bar into cached responses. This bundle avoids both:
 | Add new | Opens the creation form for the current content type; outside of any content context it opens the page list of the webspace. |
 | Logout | Calls the Sulu admin logout route. |
 
-Permissions are checked server-side with Sulu's `SecurityChecker` — against
+Permissions are checked server-side with Sulu's `SecurityChecker` â€” against
 the `sulu.webspaces.<webspace>` security context for pages and against the
 entity's admin views (plus the optional configured `security_context`) for
-custom entities — so links the user is not allowed to use are never rendered.
+custom entities â€” so links the user is not allowed to use are never rendered.
 
 ## Configuration
 
@@ -197,13 +197,13 @@ admin_bar:
     # e.g. with a renamed admin firewall.
     #admin_route_prefix: /admin
 
-    # Texts of the toolbar links — override them to localize the bar.
+    # Texts of the toolbar links â€” override them to localize the bar.
     labels:
         edit: Edit
         add: Add new
         logout: Logout
 
-    # Optional per-entity extras — see "Custom entities" below.
+    # Optional per-entity extras â€” see "Custom entities" below.
     entities:
         formation:                                        # request attribute
             resource_key: formations                      # Sulu resource key
@@ -235,7 +235,7 @@ scalar `getId()` is linkable.
 
 Entity detail pages that are **not** served through the Sulu route system
 but by plain Symfony routes (e.g. `/formation/{slug}/{id}`) carry no entity
-object in the request attributes — those are detected automatically too.
+object in the request attributes â€” those are detected automatically too.
 The loader forwards the route name and URL path together with the numeric
 `id` route parameter, and the authenticated endpoint matches them against
 the Doctrine entities following the `RESOURCE_KEY` convention (resource key
@@ -250,11 +250,11 @@ views per user, a user without access to the entity simply gets no link.
 
 Configuration under `admin_bar.entities` is only needed for two cases:
 
-- `routes` — route names whose name/path the automatic detection cannot
+- `routes` â€” route names whose name/path the automatic detection cannot
   relate to the entity (e.g. a route named `training_sheet` rendering a
   `Formation`). Explicitly listed route names always win over the
   automatic matching and are resolved without the name heuristic.
-- `security_context` — an additional permission gate. Without it a link is
+- `security_context` â€” an additional permission gate. Without it a link is
   shown whenever the current user has a matching admin view (which usually
   means the `view` permission); with it the `edit`/`add` permission of that
   context is required on top.
@@ -294,7 +294,7 @@ Notes:
 - PHP >= 7.2 (the optional installer script needs PHP >= 7.3)
 - Sulu ^2.0 || ^3.0
 - Symfony ^4.4 || ^5.4 || ^6.4 || ^7.0
-- Browsers: the loader uses `fetch` and `URLSearchParams` — every evergreen
+- Browsers: the loader uses `fetch` and `URLSearchParams` â€” every evergreen
   browser works; Internet Explorer does not (visitors are unaffected either
   way, the script only acts for logged-in admin users).
 
@@ -309,32 +309,32 @@ context are identical in both major versions.
 
 ```
 AdminBarBundle/
-├── composer.json
-├── install.php                  # one-shot project installer
-├── LICENSE
-├── README.md
-├── config/
-│   ├── routes.yaml              # <admin-prefix>/admin-bar JSON endpoint
-│   └── services.yaml            # service definitions
-├── public/
-│   ├── admin-bar.css            # toolbar styles (loaded only when logged in)
-│   └── admin-bar.js             # loader + toolbar rendering
-├── src/
-│   ├── AdminBarBundle.php       # bundle class
-│   ├── DependencyInjection/
-│   │   ├── AdminBarExtension.php  # loads services, "admin_bar" config
-│   │   └── Configuration.php
-│   ├── Controller/
-│   │   └── AdminBarController.php # authenticated JSON endpoint
-│   ├── EventListener/
-│   │   └── AdminSessionCookieListener.php # session marker cookie
-│   ├── Resolver/
-│   │   └── EntityResourceKeyResolver.php # route/path → resource key
-│   └── Twig/
-│       └── AdminBarExtension.php  # {{ sulu_admin_bar() }}
-├── templates/
-│   └── admin_bar.html.twig      # cache-safe loader snippet
-└── tests/                       # PHPUnit test suite (vendor/bin/phpunit)
+â”œâ”€â”€ composer.json
+â”œâ”€â”€ install.php                  # one-shot project installer
+â”œâ”€â”€ LICENSE
+â”œâ”€â”€ README.md
+â”œâ”€â”€ config/
+â”‚   â”œâ”€â”€ routes.yaml              # <admin-prefix>/admin-bar JSON endpoint
+â”‚   â””â”€â”€ services.yaml            # service definitions
+â”œâ”€â”€ public/
+â”‚   â”œâ”€â”€ admin-bar.css            # toolbar styles (loaded only when logged in)
+â”‚   â””â”€â”€ admin-bar.js             # loader + toolbar rendering
+â”œâ”€â”€ src/
+â”‚   â”œâ”€â”€ AdminBarBundle.php       # bundle class
+â”‚   â”œâ”€â”€ DependencyInjection/
+â”‚   â”‚   â”œâ”€â”€ AdminBarExtension.php  # loads services, "admin_bar" config
+â”‚   â”‚   â””â”€â”€ Configuration.php
+â”‚   â”œâ”€â”€ Controller/
+â”‚   â”‚   â””â”€â”€ AdminBarController.php # authenticated JSON endpoint
+â”‚   â”œâ”€â”€ EventListener/
+â”‚   â”‚   â””â”€â”€ AdminSessionCookieListener.php # session marker cookie
+â”‚   â”œâ”€â”€ Resolver/
+â”‚   â”‚   â””â”€â”€ EntityResourceKeyResolver.php # route/path â†’ resource key
+â”‚   â””â”€â”€ Twig/
+â”‚       â””â”€â”€ AdminBarExtension.php  # {{ sulu_admin_bar() }}
+â”œâ”€â”€ templates/
+â”‚   â””â”€â”€ admin_bar.html.twig      # cache-safe loader snippet
+â””â”€â”€ tests/                       # PHPUnit test suite (vendor/bin/phpunit)
 ```
 
 ## License
